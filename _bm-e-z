@@ -1,0 +1,20 @@
+#compdef bm-e-z
+# ------------------------------------------------------------------------------
+# Copyright (c) 2014 Kazuyuki Shimizu
+# Licensed under the MIT License (MIT)
+# ------------------------------------------------------------------------------
+#autoload
+
+typeset -A opt_args
+local context state line
+
+#cd-bookmarkの補完関数をそのまま流用した
+_bm-e-z() {
+
+  local context state line curcontext="$curcontext"
+  
+  local -a _bookmark_id_list
+  _bookmark_id_list=( ${(@f)"$(_call_program cd-bookmark-list cd-bookmark -l | cut -d '|' -f 1 | sort -n)"} )
+  _describe -t bookmark_id "bookmark id" _bookmark_id_list
+  
+}

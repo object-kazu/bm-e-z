@@ -1,0 +1,172 @@
+# bookmark-emacs-zsh - zsh plugin for using emacs bookmark in zsh.
+#
+# Copyright (C) 2015 momiji-mac.com  All Rights Reserved.
+# our homepage is http://momiji-mac.com/wp/
+#
+# Author : kazuyuki shimizu  
+# URL : https://gist.github.com/aef5a168cdb98258dbd6.git
+#
+# How to install
+#  1. install cd-bookmark (see, https://github.com/mollifier/cd-bookmark.git)
+#  2. put bm-e-z file in your $fpath
+#  3. if you need, _bm-e-z file also put in $fpath
+# 
+#        $ ls .zsh/functions/
+#          bm-e-z _bm-e-z cd-bookmark/
+# 
+#  4. add this line to your .zshrc:
+#     autoload -Uz bm-e-z
+#  5. both emacs bookmark file and cd-bookmark file path is configure
+
+
+####### configure ###########
+
+em='/Applications/Emacs24.app/Contents/MacOS/bin/emacsclient'
+
+# your bookmark files select
+#EMACS_BOOKMARK=~/.emacs.d/bookmarks
+EMACS_BOOKMARK=~/.emacs.bmk
+CDBOOKMARK=~/.cdbookmark
+
+####### functions  ###############
+function _update_emacs_bookmark(){
+        $em -e -n "(progn (bookmark-save))"
+}
+
+function _errorMessage(){
+    echo "maybe, invalid option, try -h option "
+    
+}
+function _showList(){
+    cd-bookmark
+}
+function _showHelp(){
+
+    cat <<EOF
+Usage:
+  bm-e-z -a
+  bm-e-z [-c] BOOKMARK
+
+  -a add current directory to bookmark(Emacs bookmark)
+  -u update bookmark from emacs bookmark
+  -c change directory
+  -l list bookmark
+  -h display this help and exit
+
+EOF
+    
+}
+function _updateList(){
+    _update_emacs_bookmark
+
+    ####### make temp file #######
+    temp_bookmark=$(mktemp -t temp)
+    NameList=$(mktemp -t temp)
+    PathList=$(mktemp -t temp)
+    Combined=$(mktemp -t temp)
+    
+    ####### init #######
+    echo "" > ${CDBOOKMARK}
+
+    ####### file path extract #######
+    grep '(".*"\|filename' $EMACS_BOOKMARK | grep 'filename' | sed -e 's/ (filename \. \"/\|/g' > $PathList
+
+    ####### file name  extract #######
+    grep '(".*"\|filename' $EMACS_BOOKMARK | grep -v 'filename' | sed -e s/^\(\"// |sed -e s/\"// > $NameList  
+    sed -i -e s/\(\(// $NameList
+	    
+    ####### file name and file path combine #######
+    paste -d "\0" $NameList $PathList > $Combined
+    sed -i -e s/\"\)// $Combined
+    
+    ####### "~"を展開して置換 #######
+    sed -e s/~/"\/Users\/shimizukazuyuki"/g $Combined > ${CDBOOKMARK}
+
+    ####### remove temp file #######
+    rm "$temp_bookmark"
+    rm "$NameList"
+    rm "$PathList"
+    rm "$Combined"
+
+}
+function _changeDir(){
+    local targetDir="$1"
+    cd-bookmark "$targetDir"
+    
+}
+function _addBookMark(){
+    #bookmark current dir,which add on emacs (= C-x bookmark set)
+    name=`basename $PWD`
+    $em -e -n "(progn (dired \"$PWD\")(bookmark-set \"$name\")(bookmark-save))"
+    
+}
+
+####### Script  main  ###############
+#emacsのブックマークをzshでも使う
+#Usage: bm-e-z -[asdh] 
+########################################
+
+
+######### main function ###############
+function mainFunction(){
+    #FLAG: add, update, change,list, help
+    local FLAG=""
+    local bookmark_item=""
+    local opt OPTIND
+    
+    while getopts "auclh" opt
+    do 
+	case ${opt} in
+            a) FLAG="add"
+		;;
+            u) FLAG="update"
+		;;
+	    c) FLAG="change"
+		;;
+	    l) FLAG="list"
+		;;
+            h) FLAG="help"
+		;;
+            \?) _errorMessage
+		return 1
+		;;
+	esac
+    done
+    shift `expr $OPTIND - 1` 
+    
+    # with no option, cd
+    if [ -z "$FLAG" ]; then
+	bookmark_item="$1"
+
+	if [ -n "$bookmark_item" ]; then
+	    FLAG="change"
+	else
+	    FLAG="list"
+	fi
+    fi
+    
+    if [ "$FLAG" = "add" ]; then
+	_addBookMark
+	_updateList
+    fi
+    
+    if [ "$FLAG" = "update" ]; then
+	_updateList
+    fi
+    
+    if [ "$FLAG" = "change" ]; then
+	_changeDir "$bookmark_item"
+    fi
+    
+    if [ "$FLAG" = "list" ]; then
+	_updateList
+	_showList
+    fi
+        
+    if [ "$FLAG" = "help" ]; then
+	_showHelp
+    fi
+
+}
+
+mainFunction "$@"
