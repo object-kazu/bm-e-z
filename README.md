@@ -59,6 +59,10 @@ CDBOOKMARK=~/.cdbookmark
 
         $ bm-e-z [TAB, select directory]
 
++ ### show list (update bookmark, at same time)
+
+        $ bm-e-z -l
+
 + ### show help
 
         $ bm-e-z -h
